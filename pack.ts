@@ -14,6 +14,8 @@ const DEFAULT_MODEL = 'gpt-3.5-turbo-instruct';
 const DEFAULT_IMAGE_MODEL = 'gpt-4o';
 const DEFAULT_IMAGE_DETAIL = 'auto';
 
+const HostedImageUrlRegex = new RegExp("^https://(?:[^/]*\.)?codahosted.io/.*");
+
 pack.setUserAuthentication({
     type: coda.AuthenticationType.HeaderBearerToken,
     instructionsUrl: 'https://platform.openai.com/account/api-keys',
@@ -165,6 +167,12 @@ const imageUrlParam = coda.makeParameter({
     type: coda.ParameterType.String,
     name: 'imageUrl',
     description: 'imageUrl',
+});
+
+const imageParam = coda.makeParameter({
+    type: coda.ParameterType.Image,
+    name: 'image',
+    description: 'image',
 });
 
 const imageDetailParam = coda.makeParameter({
@@ -331,6 +339,68 @@ pack.addFormula({
 
         const textContent: ChatCompletionMessageContent = { type: 'text', text: userPrompt };
         const imageUrlContent: ChatCompletionMessageContent = { type: 'image_url', image_url: { url: imageUrl, detail: imageDetail } };
+
+        messages.push({ role: 'user', content: [textContent, imageUrlContent] });
+
+        let responseFormat = null;
+        if (structuredOutput) {
+            coda.assertCondition(isStructuredOutputModel(model), 'Must use `gpt-4o`-related models to use `structuredOutput` in this formula.');
+            responseFormat = toResponseFormat(structuredOutput);
+        }
+
+        const request = {
+            model,
+            messages,
+            response_format: responseFormat,
+            max_tokens: maxTokens,
+            temperature,
+            stop,
+        };
+
+        const result = await getChatCompletion(context, request);
+
+        return result;
+    },
+});
+
+pack.addFormula({
+    name: 'VisionBase64',
+    description:
+        'Takes a prompt and an image as input, and return a model-generated message as output. Optionally, you can provide a system message to control the behavior of the chatbot.',
+    parameters: [imageParam, promptParam, systemPromptParam, modelParameter, imageDetailParam, numTokensParam, temperatureParam, stopParam, structuredOutputParam],
+    resultType: coda.ValueType.String,
+    onError: handleError,
+    execute: async function (
+        [image, userPrompt, systemPrompt, model = DEFAULT_IMAGE_MODEL, imageDetail = DEFAULT_IMAGE_DETAIL, maxTokens = 512, temperature, stop, structuredOutput],
+        context,
+    ) {
+        coda.assertCondition(isImageInputModel(model), 'Must use `gpt-4o`-related models for this formula.');
+
+        if (image.length === 0 || userPrompt.length === 0) {
+            return '';
+        }
+
+        if (!image.match(HostedImageUrlRegex)) {
+            throw new coda.UserVisibleError("Not compatible with Image URL columns.");
+        }
+
+        // Fetch the image content.
+        let response = await context.fetcher.fetch({
+            method: "GET",
+            url: image,
+            isBinaryResponse: true, // Required when fetching binary content.
+            disableAuthentication: true,
+        });
+        const base64Image = Buffer.from(response.body).toString('base64');
+
+        const messages: ChatCompletionMessage[] = [];
+
+        if (systemPrompt && systemPrompt.length > 0) {
+            messages.push({ role: 'system', content: systemPrompt });
+        }
+
+        const textContent: ChatCompletionMessageContent = { type: 'text', text: userPrompt };
+        const imageUrlContent: ChatCompletionMessageContent = { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}`, detail: imageDetail } };
 
         messages.push({ role: 'user', content: [textContent, imageUrlContent] });
 
