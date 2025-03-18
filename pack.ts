@@ -100,17 +100,25 @@ function toResponseFormat(jsonString: string) {
 function toZodSchema(parsedJson: object) {
     const zObjectShape = {};
     for (let [key, item] of Object.entries(parsedJson)) {
+        const [keyName, keyDesc] = key.split(':', 2);
+        let itemZObject = null;
         if (item === "string") {
-            Object.assign(zObjectShape, { [key]: z.string() });
+            itemZObject = z.string();
         } else if (item === "number") {
-            Object.assign(zObjectShape, { [key]: z.number() });
+            itemZObject = z.number();
         } else if (Array.isArray(item) && item.length > 0) {
-            Object.assign(zObjectShape, { [key]: z.array(toZodSchema(item[0])) });
+            itemZObject = z.array(toZodSchema(item[0]));
         } else if (typeof item === "object") {
-            Object.assign(zObjectShape, { [key]: toZodSchema(item) });
+            itemZObject = toZodSchema(item);
         } else {
             throw new Error(`Unsupported type: ${item}`);
         }
+
+        if (keyDesc) {
+            itemZObject = itemZObject.describe(keyDesc);
+        }
+        
+        Object.assign(zObjectShape, { [keyName]: itemZObject });
     }
 
     return z.object(zObjectShape);
