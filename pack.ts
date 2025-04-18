@@ -72,18 +72,21 @@ function isChatCompletionModel(model: string): boolean {
 
 function isStructuredOutputModel(model: string): boolean {
     // Also works with snapshot model like `gpt-4o-2024-11-20` & `gpt-4o-mini-2024-07-18`
-    return model.includes('gpt-4o');
+    return model.includes('gpt-4');
 }
 
 function isImageInputModel(model: string): boolean {
     // Also works with snapshot model like `gpt-4o-2024-11-20` & `gpt-4o-mini-2024-07-18`
-    return model.includes('gpt-4o');
+    return model.includes('gpt-4');
 }
 
 
-function toResponseFormat(jsonString: string) {
+function toResponseFormat(jsonString: string, description?: string) {
     const parsedJson = JSON.parse(jsonString);
     const zodSchema = toZodSchema(parsedJson);
+    if (description) {
+        zodSchema.describe(description);
+    }
     const schemaName = "output";
     const jsonSchema = zodToJsonSchema(zodSchema, { name: schemaName })
 
@@ -232,6 +235,14 @@ const structuredOutputParam = coda.makeParameter({
     optional: true,
 });
 
+const structuredOutputDescriptionParam = coda.makeParameter({
+    type: coda.ParameterType.String,
+    name: 'structuredOutputDescription',
+    description:
+        'Optional. Define a custom description for structured output schema.',
+    optional: true,
+});
+
 const temperatureParam = coda.makeParameter({
     type: coda.ParameterType.Number,
     name: 'temperature',
@@ -280,11 +291,11 @@ pack.addFormula({
     name: 'ChatCompletion',
     description:
         'Takes prompt as input, and return a model-generated message as output. Optionally, you can provide a system message to control the behavior of the chatbot.',
-    parameters: [promptParam, systemPromptParam, modelParameter, numTokensParam, temperatureParam, stopParam, structuredOutputParam],
+    parameters: [promptParam, systemPromptParam, modelParameter, numTokensParam, temperatureParam, stopParam, structuredOutputParam, structuredOutputDescriptionParam],
     resultType: coda.ValueType.String,
     onError: handleError,
     execute: async function (
-        [userPrompt, systemPrompt, model = 'gpt-3.5-turbo', maxTokens = 512, temperature, stop, structuredOutput],
+        [userPrompt, systemPrompt, model = 'gpt-3.5-turbo', maxTokens = 512, temperature, stop, structuredOutput, structuredOutputDesc],
         context,
     ) {
         coda.assertCondition(isChatCompletionModel(model), 'Must use `gpt-3.5-turbo`-related models for this formula.');
@@ -304,7 +315,7 @@ pack.addFormula({
         let responseFormat = null;
         if (structuredOutput) {
             coda.assertCondition(isStructuredOutputModel(model), 'Must use `gpt-4o`-related models to use `structuredOutput` in this formula.');
-            responseFormat = toResponseFormat(structuredOutput);
+            responseFormat = toResponseFormat(structuredOutput, structuredOutputDesc);
         }
 
         const request = {
@@ -326,11 +337,11 @@ pack.addFormula({
     name: 'Vision',
     description:
         'Takes a prompt and an image URL as input, and return a model-generated message as output. Optionally, you can provide a system message to control the behavior of the chatbot.',
-    parameters: [imageUrlParam, promptParam, systemPromptParam, modelParameter, imageDetailParam, numTokensParam, temperatureParam, stopParam, structuredOutputParam],
+    parameters: [imageUrlParam, promptParam, systemPromptParam, modelParameter, imageDetailParam, numTokensParam, temperatureParam, stopParam, structuredOutputParam, structuredOutputDescriptionParam],
     resultType: coda.ValueType.String,
     onError: handleError,
     execute: async function (
-        [imageUrl, userPrompt, systemPrompt, model = DEFAULT_IMAGE_MODEL, imageDetail = DEFAULT_IMAGE_DETAIL, maxTokens = 512, temperature, stop, structuredOutput],
+        [imageUrl, userPrompt, systemPrompt, model = DEFAULT_IMAGE_MODEL, imageDetail = DEFAULT_IMAGE_DETAIL, maxTokens = 512, temperature, stop, structuredOutput, structuredOutputDesc],
         context,
     ) {
         coda.assertCondition(isImageInputModel(model), 'Must use `gpt-4o`-related models for this formula.');
@@ -353,7 +364,7 @@ pack.addFormula({
         let responseFormat = null;
         if (structuredOutput) {
             coda.assertCondition(isStructuredOutputModel(model), 'Must use `gpt-4o`-related models to use `structuredOutput` in this formula.');
-            responseFormat = toResponseFormat(structuredOutput);
+            responseFormat = toResponseFormat(structuredOutput, structuredOutputDesc);
         }
 
         const request = {
@@ -375,11 +386,11 @@ pack.addFormula({
     name: 'VisionBase64',
     description:
         'Takes a prompt and an image as input, and return a model-generated message as output. Optionally, you can provide a system message to control the behavior of the chatbot.',
-    parameters: [imageParam, promptParam, systemPromptParam, modelParameter, imageDetailParam, numTokensParam, temperatureParam, stopParam, structuredOutputParam],
+    parameters: [imageParam, promptParam, systemPromptParam, modelParameter, imageDetailParam, numTokensParam, temperatureParam, stopParam, structuredOutputParam, structuredOutputDescriptionParam],
     resultType: coda.ValueType.String,
     onError: handleError,
     execute: async function (
-        [image, userPrompt, systemPrompt, model = DEFAULT_IMAGE_MODEL, imageDetail = DEFAULT_IMAGE_DETAIL, maxTokens = 512, temperature, stop, structuredOutput],
+        [image, userPrompt, systemPrompt, model = DEFAULT_IMAGE_MODEL, imageDetail = DEFAULT_IMAGE_DETAIL, maxTokens = 512, temperature, stop, structuredOutput, structuredOutputDesc],
         context,
     ) {
         coda.assertCondition(isImageInputModel(model), 'Must use `gpt-4o`-related models for this formula.');
@@ -415,7 +426,7 @@ pack.addFormula({
         let responseFormat = null;
         if (structuredOutput) {
             coda.assertCondition(isStructuredOutputModel(model), 'Must use `gpt-4o`-related models to use `structuredOutput` in this formula.');
-            responseFormat = toResponseFormat(structuredOutput);
+            responseFormat = toResponseFormat(structuredOutput, structuredOutputDesc);
         }
 
         const request = {
