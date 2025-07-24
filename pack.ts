@@ -72,7 +72,7 @@ function isChatCompletionModel(model: string): boolean {
 
 function isStructuredOutputModel(model: string): boolean {
     // Also works with snapshot model like `gpt-4o-2024-11-20` & `gpt-4o-mini-2024-07-18`
-    return model.includes('gpt-4');
+    return true;
 }
 
 function isImageInputModel(model: string): boolean {
