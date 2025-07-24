@@ -67,7 +67,7 @@ interface ChatCompletionResponseFormat {
 
 function isChatCompletionModel(model: string): boolean {
     // Also works with snapshot model like `gpt-3.5-turbo-0301` & `gpt-4-0314`
-    return model.includes('gpt-3.5-turbo') || model.includes('gpt-4');
+    return true;
 }
 
 function isStructuredOutputModel(model: string): boolean {
@@ -144,7 +144,7 @@ async function getCompletion(context: coda.ExecutionContext, request: Completion
         if (isChatCompletionModel(request.model)) {
             return getChatCompletion(context, {
                 model: request.model,
-                max_tokens: request.max_tokens,
+                // max_tokens: request.max_tokens,
                 temperature: request.temperature,
                 messages: [{ role: 'user', content: request.prompt }],
             });
